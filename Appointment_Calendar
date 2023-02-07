@@ -20,7 +20,7 @@ do
 	select=`dialog --clear \
 		--cancel-label "Exit" \
 		--menu "What would you like to do?" 0 0 0 \
-	    1 "Make an appointment" \
+        1 "Make an appointment" \
 		2 "Delete an appointment" \
 		3 "See all of your appointments" \
 		4 "Edit an existing appointment" \
