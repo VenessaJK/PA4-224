@@ -1,0 +1,241 @@
+#!/bin/bash
+# Venesa Kuchenik
+# 11/12/2022
+# CSE 224
+# PA5
+# This is a program that will create, delete, and edit appointments using a GUI
+#------------------------------------------------------------------------------------------------------
+# INTRO AND SELECTING FROM MENU
+#------------------------------------------------------------------------------------------------------
+
+dialog --title "Welcome" --ok-label "Next" --msgbox "This is an appointment calender!" 6 27
+while [[ 1 ]]	#the whole program is in an infinite loop
+do
+	touch apt.txt
+	touch apt_bckup.txt
+	touch listOfDays.txt
+	touch appts_to_delete.txt
+	touch display.txt
+
+	select=`dialog --clear \
+		--cancel-label "Exit" \
+		--menu "What would you like to do?" 0 0 0 \
+	    1 "Make an appointment" \
+		2 "Delete an appointment" \
+		3 "See all of your appointments" \
+		4 "Edit an existing appointment" \
+		5 "Delete all appointments" \
+		6 "Veiw all appointments on a given day" --output-fd 1`
+	exit_status=$?
+	if [[ $exit_status -ne 0 ]]
+	then
+		exit  #can only exit out of program in main menu
+	fi
+
+#----------------------------------------------------------------------------------------------------------------------------------------
+# CREATE AN APPOINTMENT
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+	if [[ $select -eq 1 ]]
+	then
+		#takes a date and adds to list in file apt.txt
+		date=`dialog --clear \
+		    --date-format "%m-%d-%Y" \
+			--calendar "Please choose a date" 0 0 \
+			--output-fd 1`
+		exit_status=$?						#if usr continues, it will add a description
+		if [[ $exit_status -eq 0 ]]
+		then
+			description=`dialog --clear \
+				--inputbox "Enter appointment details" 0 0 \
+				--output-fd 1`
+			description=`echo $description | sed "s/ /_/g"` 
+			cp apt.txt apt_bckup.txt
+			echo -n $date"|" >> apt.txt
+			echo $description >> apt.txt			#description can be empty
+		fi
+	fi
+
+#----------------------------------------------------------------------------------------------------------------------------------------
+# DELETING A SINLGE APPOINTMENT
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+	if [[ $select -eq 2 ]]
+	then
+		file="appts_to_delete.txt"				
+		num=0
+
+		delete=`dialog --clear \
+			--date-format "%m-%d-%Y" \
+			--calendar "Please select the date of the appointment you wish to remove." 0 0 \
+			--output-fd 1`				#use calendar to take input
+		exit_status=$?
+		if [[ $exit_status -eq 0 ]]
+		then
+			cat apt.txt | grep "$delete" > appts_to_delete.txt      #find all instances of appt. that user specified and store in tmp file
+            num=`wc -l appts_to_delete.txt | grep -o "^."`     #store only first char from wc output, which is num of lines 
+			if [[ $num -gt 0 ]]
+			then
+                tag=1
+                fileList=""                                     #initializing string
+                while read -r item                              #found online how to read a file line by line and store into var
+                do
+                    fileList="$fileList $tag $item off"     #found online as well, recursivley builds a string that I can use in the radiolist
+                    tag=$((tag+1))				#this small self building list is probably the coolest thing in this prgrm
+                    done <$file
+                    specific_day=`dialog --clear \
+                        --radiolist "Please specify which day you are refering to:" 0 0 "$num" $fileList \
+                        --output-fd 1`             #dynamic radiolist
+				i=1
+                while read -r line 
+                do
+                    i=$((i+1))
+                    if [[ $i -gt $specific_day ]]   	#specific_day retains the tag num of selected date
+                    then
+                        break                   	#breaks out of loop when item in list, in file, is found
+                    fi
+                done <$file
+				cp apt.txt apt_bckup.txt			#periodic backup
+				grep -v "$line" apt_bckup.txt > apt.txt		#find all instances of specific appt, and withhold it from copying to apt.txt
+			fi
+		fi
+	fi
+
+#----------------------------------------------------------------------------------------------------------------------------------------
+# DISPLAYING ALL APPOINTMENTS
+#----------------------------------------------------------------------------------------------------------------------------------------
+	if [[ $select -eq 3 ]]
+	then
+		sort apt.txt | sed "s/|/ /" | sed "s/\"//g" | sed "s/_/ /g" > display.txt	#sort and get rid of pipe bfr displaying
+		dialog --clear \
+            --title "These are all of your appointments" \
+            --exit-label "Return" \
+            --textbox display.txt 10 60
+	fi							#this randomly gets rid of word "of", no apparent reason
+
+#----------------------------------------------------------------------------------------------------------------------------------------
+# EDITING AN EXISTING APPOINTMENT
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+	if [[ $select -eq 4 ]]
+	then
+            #initializations
+            #------------------------------------------------------------------------------------------------------------------------
+		flag=0
+            echo "" > listOfDays.txt
+            file="listOfDays.txt"
+            #asking for which appointment to edit
+            #-------------------------------------------------------------------------------------------------------------------------
+                day=`dialog --clear \
+                            --date-format "%m-%d-%Y" \
+                            --calendar "Choose the apppointment date you would you like to edit." 0 0 \
+                            --output-fd 1`
+                exit_status=$?
+            if [[ $exit_status -eq 0 ]]
+            then
+                cat apt.txt | grep -F "$day" > listOfDays.txt      #find all instances of appt. day that user specified
+                count=`wc -l listOfDays.txt | grep -o "^."`     #store only the num of lines in file bc wc also prints input file used
+	
+	                tag=1
+	                fileList=""                                     #initializing string
+	                while read -r item                              #found online how to read a file line by line and store into var
+	                do
+	                        fileList="$fileList $tag $item off"     #found online as well, recursivley builds a string that I can use in the radiolist
+	                        tag=$((tag+1))
+	                done <$file
+	                specific_day=`dialog --clear \
+	                                     --radiolist "Please specify which day you are refering to" 10 70 "$count" $fileList \
+	                                     --output-fd 1`             #dynamic radiolist      
+	                #ask usr if they want to change the date of the appointment and store the new date of appt.
+	                #---------------------------------------------------------------------------------------------------------------------------
+	                new_day=`dialog --clear \
+	                                --cancel-label "Skip" \
+	                                --date-format "%m-%d-%Y" \
+	                                --calendar "Please choose a new date, otherwise press skip." 0 0 --output-fd 1`
+	                exit_status=$?
+	                if [[ $exit_status -eq 0 ]]
+	                then
+				flag=1		#so that if adding new description, know which date to add it to
+	                        i=1
+	                        while read -r line 
+	                        do
+	                                i=$((i+1))
+	                                if [[ $i -gt $specific_day ]]   #specific_day retains the tag num of selected date
+					then
+	                                        break                   #breaks when item in list in file is found
+	                                fi
+	                        done <$file
+	                        cp apt.txt apt_bckup.txt
+	                        grep -v "$line" apt_bckup.txt > apt.txt
+	                        echo "$new_day""|" >> apt.txt
+	                fi
+	
+	                #ask usr if they want to change the description of appt.
+	                #----------------------------------------------------------------------------------------------------------------------------
+	                new_description=`dialog --clear \
+	                                        --cancel-label "Skip" \
+	                                        --inputbox "Enter the new details for your appointment or press skip." 0 0 --output-fd 1`
+			new_description=`echo $new_description | sed "s/ /_/g"`
+	                exit_status=$?
+	                if [[ $exit_status -eq 0 ]]
+	                then
+	                        if [[ $flag -eq 1 ]]            #if date was changed, then need to use new_day var
+	                        then
+	                                line="$new_day""|"
+	
+	                        elif [[ $flag -eq 0 ]]          #this is a flag set above if the original appt date is changed
+	                        then
+	                                i=1
+	                                while read -r line      #read file one line at a time and store in var line
+	                                do
+	                                        i=$((i+1))
+	                                        if [[ $i -gt $specific_day ]]
+	                                        then
+	                                                break   #tag num of speficif_day also refers to it's position in file list
+	                                        fi
+	                                done <$file
+	                        fi
+	                        cp apt.txt apt_bckup.txt
+	                        grep -v "$line" apt_bckup.txt > apt.txt                 #delete old appointment from file
+	                        no_description=`echo "$line" | grep -o "^..........."`  #removed old appointment description
+	                        new_description="$no_description""$new_description"     #add new appointment description
+	                        echo $new_description >> apt.txt                        #append new appointment
+	                fi
+	        fi
+	fi
+
+#----------------------------------------------------------------------------------------------------------------------------------------
+# DELETING ALL APPOINTMENTS AT ONCE
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+	if [[ $select -eq 5 ]]
+	then
+		dialog --clear \
+		       --yes-label "DELETE ALL" \
+		       --no-label "Cancel" \
+		       --yesno "Are you sure you want to delete all of your appointments? This action cannot be undone." 0 0
+		exit_status=$?
+		if [[ $exit_status -eq 0 ]]
+		then
+			echo "" > apt.txt		#overwrites previous content with empty string
+		fi
+	fi
+
+#----------------------------------------------------------------------------------------------------------------------------------------
+# CHECKING APPOINTMENTS ON A SPECIFIC DAY
+#----------------------------------------------------------------------------------------------------------------------------------------
+
+	if [[ $select -eq 6 ]]
+	then
+		allAppts=`dialog --clear \
+				 --date-format "%m-%d-%Y" \
+				 --calendar "Choose a day to see all occuring events." 0 0 --output-fd 1`
+		cp apt.txt apt_bckup.txt
+		sort apt.txt | sed "s/|/ /" | sed "s/_/ /g" | grep "$allAppts" > display.txt
+		
+		dialog --clear \
+		       --exit-label "Return" \
+		       --title "These are all of the appointments on the $allAppts:" \
+		       --textbox display.txt 10 75
+	fi
+done
