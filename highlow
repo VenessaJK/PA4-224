@@ -1,0 +1,74 @@
+#!/bin/bash
+#----------------------------------------------
+# Venessa Kuchenik
+# 11/2/2022
+# CSE 215
+# PA4
+#----------------------------------------------
+# This program will play a guessing game called
+# highlow with the user. The computer will try
+# to guess the number the user is thinking of.
+#----------------------------------------------
+# Command Line Arguments and Intro
+
+if [[ $# -ge 1 ]]					#looks for command line arguments
+then
+	if [[ $1 -lt 1 ]]				#if argument is less than 1, exits
+	then
+		echo "Oh oh, I can't play with a range below 1."
+		exit
+	fi
+	range=$(($1))					#range is whatever user wants
+else
+	range=100					#preset range to 100 if no command line arg
+fi
+
+echo "Welcome to highlow! I will try to guess"		#intro
+echo "a number you are thinking of from 1-$range."
+echo ""							#new line
+echo "Go ahead and think of a number and hit any key to start!"
+echo "--------------------------------------------------------"
+read -s -n 1
+#--------------------------------------------------------------
+# MAIN PROGRAM
+	
+count=0							#initializing guess count					
+low=1							#initializing low to 1
+high=$range						#initializing high to range chosen previously
+while [[ $range -ne 0 ]]
+do
+	if [[ $low -gt $high ]] || [[ $high -lt $low ]]	#catches cheating and exits
+	then
+		echo ""					#new line
+		echo "My sixth sense detects cheating, shame shame."
+		exit
+	fi
+	guess=$(($((high+low))/2))			#algorithm for guessing
+	echo "Is your number $guess?"
+	echo -n "Enter (h) if the guess is too high, (l) for too low, and (c) if the guess is correct: "
+	read -n 1 user					#captures users first keystroke and stores in user
+	echo " "					#print new line
+
+	while [[ "$user" != "h" ]] && [[ "$user" != "l" ]] && [[ "$user" != "c" ]]	#if user didn't type correctly 1st time
+	do
+		echo -n "Please enter an (h) for high, (l) for low, or a (c) if the guess is correct: "
+		read -n 1 user
+		echo " "        			#new line
+	done
+
+	if [[ "$user" == "h" ]]
+	then
+		high=$((guess-1))			#if high, minus 1 for new range
+	elif [[ "$user" == "l" ]]
+	then
+		low=$((guess+1))			#if low, plus 1 for new range
+	fi
+	count=$((count+1))				#inc bfr user==c bc that will exit or code will guess again after
+
+	if [[ "$user" == "c" ]]				#if guess is correct, end game
+	then
+		echo ""					#new line
+		echo "Your number is $guess and it only took me $count guesses!"
+		exit
+	fi
+done
